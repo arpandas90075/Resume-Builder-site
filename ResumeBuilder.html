@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResumeForge — Free Resume Builder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --ink:#1e2533; --muted:#6b7487;
+    --brand:#4f46e5; --brand2:#7c3aed; --line:#e4e8f0; --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif; background:var(--bg); color:var(--ink);}
+  button{font-family:inherit; cursor:pointer;}
+  input,textarea,select{font-family:inherit;}
+
+  /* ---------- Top bar ---------- */
+  .topbar{position:sticky; top:0; z-index:50; background:#fff; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between; padding:12px 28px;}
+  .logo{font-size:20px; font-weight:800; letter-spacing:-.5px; cursor:pointer;}
+  .logo span{color:var(--brand);}
+  .topbar .actions{display:flex; gap:10px;}
+  .btn{border:none; border-radius:10px; padding:10px 18px; font-size:14px; font-weight:600; transition:.15s;}
+  .btn-primary{background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#fff;}
+  .btn-primary:hover{filter:brightness(1.1);}
+  .btn-ghost{background:transparent; color:var(--ink); border:1px solid var(--line);}
+  .btn-ghost:hover{background:#f1f3f9;}
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* ---------- Landing ---------- */
+  .hero{max-width:1100px; margin:0 auto; padding:70px 24px 40px; text-align:center;}
+  .hero h1{font-size:clamp(30px,5vw,52px); font-weight:800; letter-spacing:-1.5px; line-height:1.1;}
+  .hero h1 em{font-style:normal; background:linear-gradient(135deg,var(--brand),var(--brand2)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .hero p{margin-top:16px; font-size:17px; color:var(--muted); max-width:560px; margin-left:auto; margin-right:auto;}
+  .choices{display:flex; gap:26px; justify-content:center; flex-wrap:wrap; margin:48px auto 70px; max-width:1000px; padding:0 24px;}
+  .choice{flex:1 1 340px; max-width:440px; background:var(--card); border:1px solid var(--line); border-radius:20px;
+    padding:38px 32px; text-align:left; transition:.2s; cursor:pointer; position:relative; overflow:hidden;}
+  .choice:hover{transform:translateY(-5px); box-shadow:0 18px 40px rgba(79,70,229,.14); border-color:#c9c4f7;}
+  .choice .icon{width:58px; height:58px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:26px; margin-bottom:20px;}
+  .choice:nth-child(1) .icon{background:#eef2ff; color:var(--brand);}
+  .choice:nth-child(2) .icon{background:#f5f3ff; color:var(--brand2);}
+  .choice h2{font-size:22px; margin-bottom:8px;}
+  .choice p{color:var(--muted); font-size:14.5px; line-height:1.6;}
+  .choice .go{margin-top:22px; display:inline-block; font-weight:700; color:var(--brand); font-size:14px;}
+  .feat{display:flex; gap:34px; justify-content:center; flex-wrap:wrap; padding:0 24px 80px; color:var(--muted); font-size:14px;}
+  .feat div::before{content:"✓ "; color:#16a34a; font-weight:700;}
+
+  /* ---------- Gallery ---------- */
+  .gallery-wrap{max-width:1200px; margin:0 auto; padding:44px 24px 80px;}
+  .gallery-wrap h1{font-size:32px; letter-spacing:-1px;}
+  .gallery-wrap .sub{color:var(--muted); margin:8px 0 34px;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:28px;}
+  .tcard{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; transition:.2s; cursor:pointer;}
+  .tcard:hover{transform:translateY(-4px); box-shadow:0 16px 36px rgba(30,37,51,.14);}
+  .thumb{height:340px; overflow:hidden; position:relative; background:#eceef4; display:flex; justify-content:center;}
+  .thumb .page{width:794px; transform:scale(.335); transform-origin:top center; pointer-events:none; box-shadow:0 4px 20px rgba(0,0,0,.12); flex-shrink:0;}
+  .thumb .overlay{position:absolute; inset:0; background:rgba(30,37,51,0); display:flex; align-items:center; justify-content:center; transition:.2s;}
+  .tcard:hover .overlay{background:rgba(30,37,51,.45);}
+  .tcard:hover .overlay .btn{opacity:1;}
+  .overlay .btn{opacity:0;}
+  .tmeta{padding:14px 18px; display:flex; justify-content:space-between; align-items:center;}
+  .tmeta b{font-size:15px;}
+  .tmeta span{font-size:12px; color:var(--muted);}
+
+  /* ---------- Editor ---------- */
+  .editor{display:flex; height:calc(100vh - 61px);}
+  .panel{width:430px; min-width:360px; background:#fff; border-right:1px solid var(--line); overflow-y:auto; padding:22px 22px 60px;}
+  .stage{flex:1; overflow:auto; padding:34px; display:flex; justify-content:center; align-items:flex-start; background:#e8ebf3;}
+  .preview-holder{transform-origin:top center;}
+  .page{width:794px; min-height:1123px; background:#fff; box-shadow:0 10px 40px rgba(0,0,0,.16);}
+
+  .panel h3{font-size:12px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin:26px 0 12px;}
+  .panel h3:first-child{margin-top:0;}
+  .chips{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{padding:7px 13px; border-radius:99px; border:1.5px solid var(--line); background:#fff; font-size:13px; font-weight:600; color:var(--muted);}
+  .chip.on{border-color:var(--brand); color:var(--brand); background:#eef2ff;}
+  .swatches{display:flex; gap:9px; flex-wrap:wrap; align-items:center;}
+  .sw{width:28px; height:28px; border-radius:50%; border:2.5px solid transparent; padding:0;}
+  .sw.on{border-color:var(--ink); box-shadow:0 0 0 2px #fff inset;}
+  .sw-custom{width:28px; height:28px; border:none; padding:0; background:none; cursor:pointer;}
+
+  details.sec{border:1px solid var(--line); border-radius:12px; margin-bottom:12px; background:#fff;}
+  details.sec>summary{list-style:none; padding:14px 16px; font-weight:700; font-size:14.5px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;}
+  details.sec>summary::after{content:"›"; font-size:20px; color:var(--muted); transform:rotate(90deg); transition:.2s;}
+  details.sec[open]>summary::after{transform:rotate(-90deg);}
+  .sec-body{padding:2px 16px 16px;}
+  .field{margin-bottom:11px;}
+  .field label{display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px;}
+  .field input,.field textarea,.field select{width:100%; border:1.5px solid var(--line); border-radius:9px; padding:9px 11px; font-size:14px; outline:none; transition:.15s; background:#fafbfe;}
+  .field input:focus,.field textarea:focus{border-color:var(--brand); background:#fff;}
+  .field textarea{resize:vertical; min-height:70px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .entry{border:1px dashed #d5d9e4; border-radius:11px; padding:13px 13px 6px; margin-bottom:12px; position:relative; background:#fafbfe;}
+  .entry .del{position:absolute; top:8px; right:8px; background:#fee2e2; color:#dc2626; border:none; width:24px; height:24px; border-radius:7px; font-size:13px; line-height:1;}
+  .addbtn{width:100%; border:1.5px dashed var(--brand); color:var(--brand); background:#eef2ff55; border-radius:10px; padding:9px; font-weight:700; font-size:13.5px;}
+  .addbtn:hover{background:#eef2ff;}
+  .tags{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:8px;}
+  .tag{background:#eef2ff; color:var(--brand); font-size:12.5px; font-weight:600; padding:5px 10px; border-radius:99px; display:flex; align-items:center; gap:6px;}
+  .tag button{background:none; border:none; color:var(--brand); font-size:13px; padding:0;}
+  .hint{font-size:11.5px; color:var(--muted); margin-top:4px;}
+  .toast{position:fixed; bottom:26px; left:50%; transform:translateX(-50%); background:#1e2533; color:#fff; padding:12px 22px; border-radius:12px; font-size:14px; z-index:99; opacity:0; transition:.3s; pointer-events:none;}
+  .toast.show{opacity:1;}
+
+  @media (max-width:860px){
+    .editor{flex-direction:column; height:auto;}
+    .panel{width:100%; min-width:0; border-right:none; border-bottom:1px solid var(--line);}
+    .stage{padding:16px;}
+  }
+
+  /* =========================================================
+     RESUME TEMPLATE STYLES  (inside .page)
+     ========================================================= */
+  .page{color:#222; font-size:13.5px; line-height:1.55;}
+  .page ul{padding-left:18px;}
+  .page .desc{white-space:pre-line;}
+
+  /* --- Modern (sidebar) --- */
+  .t-modern{display:flex; min-height:1123px;}
+  .t-modern .side{width:33%; background:var(--ac); color:#fff; padding:42px 26px;}
+  .t-modern .main{width:67%; padding:42px 34px;}
+  .t-modern .side h4{font-size:12px; letter-spacing:2px; text-transform:uppercase; border-bottom:1.5px solid rgba(255,255,255,.4); padding-bottom:6px; margin:26px 0 12px;}
+  .t-modern .side .item{font-size:12.5px; margin-bottom:9px; word-break:break-word; opacity:.95;}
+  .t-modern .skillbar{margin-bottom:10px; font-size:12.5px;}
+  .t-modern .name{font-size:34px; font-weight:800; letter-spacing:-.5px; color:#111; line-height:1.1;}
+  .t-modern .role{font-size:15px; color:var(--ac); font-weight:700; margin:5px 0 20px; text-transform:uppercase; letter-spacing:1.5px;}
+  .t-modern h4.sec-t{font-size:14px; letter-spacing:2px; text-transform:uppercase; color:#111; margin:24px 0 12px; padding-bottom:5px; border-bottom:2.5px solid var(--ac);}
+  .t-modern .xp{margin-bottom:16px;}
+  .t-modern .xp b{font-size:14.5px;}
+  .t-modern .meta{font-size:12px; color:#777; margin:2px 0 5px;}
+
+  /* --- Classic (serif centered) --- */
+  .t-classic{padding:52px 58px; font-family:Georgia,'Times New Roman',serif;}
+  .t-classic .head{text-align:center; border-bottom:2.5px solid #222; padding-bottom:18px;}
+  .t-classic .name{font-size:32px; letter-spacing:1px; font-weight:700;}
+  .t-classic .role{font-size:14px; letter-spacing:3px; text-transform:uppercase; color:var(--ac); margin-top:5px;}
+  .t-classic .contact{font-size:12px; color:#555; margin-top:10px;}
+  .t-classic h4.sec-t{font-size:14px; letter-spacing:3px; text-transform:uppercase; text-align:center; margin:26px 0 12px; color:#222;}
+  .t-classic h4.sec-t::after{content:""; display:block; width:46px; height:2px; background:var(--ac); margin:7px auto 0;}
+  .t-classic .xp{margin-bottom:15px;}
+  .t-classic .xp .top{display:flex; justify-content:space-between; font-size:14px;}
+  .t-classic .meta{font-style:italic; color:#666; font-size:12.5px; margin:1px 0 4px;}
+  .t-classic .tags-line{text-align:center;}
+
+  /* --- Minimal --- */
+  .t-minimal{padding:56px 60px;}
+  .t-minimal .name{font-size:38px; font-weight:300; letter-spacing:-1px;}
+  .t-minimal .name b{font-weight:800;}
+  .t-minimal .role{color:#888; font-size:15px; margin:4px 0 10px;}
+  .t-minimal .contact{font-size:12px; color:#999; margin-bottom:8px;}
+  .t-minimal h4.sec-t{font-size:12px; letter-spacing:2.5px; text-transform:uppercase; color:var(--ac); margin:28px 0 12px;}
+  .t-minimal .xp{margin-bottom:16px; padding-left:14px; border-left:2px solid #eee;}
+  .t-minimal .xp b{font-size:14.5px;}
+  .t-minimal .meta{font-size:12px; color:#999; margin:2px 0 5px;}
+  .t-minimal .pill{display:inline-block; border:1px solid #ddd; border-radius:99px; padding:4px 12px; font-size:12px; margin:0 6px 6px 0; color:#555;}
+
+  /* --- Creative (banner) --- */
+  .t-creative .banner{background:linear-gradient(120deg,var(--ac),var(--ac2)); color:#fff; padding:46px 50px;}
+  .t-creative .name{font-size:36px; font-weight:800; letter-spacing:-.5px;}
+  .t-creative .role{font-size:15px; opacity:.92; margin-top:4px; font-weight:600;}
+  .t-creative .contact{font-size:12px; margin-top:14px; opacity:.9;}
+  .t-creative .cols{display:flex; gap:36px; padding:34px 50px;}
+  .t-creative .cmain{flex:1.9;}
+  .t-creative .cside{flex:1;}
+  .t-creative h4.sec-t{font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--ac); margin:0 0 12px; display:flex; align-items:center; gap:8px;}
+  .t-creative h4.sec-t::before{content:""; width:16px; height:3px; background:var(--ac); border-radius:2px;}
+  .t-creative .block{margin-bottom:26px;}
+  .t-creative .xp{margin-bottom:14px;}
+  .t-creative .xp b{font-size:14.5px;}
+  .t-creative .meta{font-size:12px; color:#888; margin:1px 0 4px;}
+  .t-creative .pill{display:inline-block; background:color-mix(in srgb,var(--ac) 12%, #fff); color:var(--ac); border-radius:8px; padding:5px 11px; font-size:12px; font-weight:600; margin:0 6px 7px 0;}
+
+  /* --- Professional --- */
+  .t-pro{padding:46px 54px;}
+  .t-pro .head{display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid var(--ac); padding-bottom:16px;}
+  .t-pro .name{font-size:32px; font-weight:800; letter-spacing:-.5px;}
+  .t-pro .role{color:var(--ac); font-weight:700; font-size:14.5px; margin-top:3px;}
+  .t-pro .contact{text-align:right; font-size:12px; color:#555; line-height:1.7;}
+  .t-pro h4.sec-t{font-size:14px; text-transform:uppercase; letter-spacing:1.6px; margin:24px 0 12px; color:#111;}
+  .t-pro h4.sec-t span{background:var(--ac); color:#fff; padding:4px 12px; border-radius:5px; font-size:12px;}
+  .t-pro .xp{margin-bottom:15px;}
+  .t-pro .xp .top{display:flex; justify-content:space-between;}
+  .t-pro .xp b{font-size:14.5px;}
+  .t-pro .meta{font-size:12px; color:#777; margin:1px 0 4px;}
+  .t-pro .grid2{display:grid; grid-template-columns:1fr 1fr; gap:4px 26px; font-size:13px;}
+  .t-pro .grid2 div::before{content:"▪ "; color:var(--ac);}
+
+  /* --- Elegant --- */
+  .t-elegant{display:flex; min-height:1123px; font-family:Georgia,serif;}
+  .t-elegant .main{width:64%; padding:48px 36px 48px 52px;}
+  .t-elegant .side{width:36%; background:#faf7f2; border-left:1px solid #eadfce; padding:48px 30px;}
+  .t-elegant .name{font-size:33px; font-weight:400; letter-spacing:.5px; line-height:1.15;}
+  .t-elegant .name b{color:var(--ac);}
+  .t-elegant .role{font-size:12.5px; letter-spacing:3.5px; text-transform:uppercase; color:#8a7d68; margin:8px 0 4px;}
+  .t-elegant h4.sec-t{font-size:12.5px; letter-spacing:3px; text-transform:uppercase; color:var(--ac); margin:30px 0 12px; border-bottom:1px solid #e5dccb; padding-bottom:7px;}
+  .t-elegant .xp{margin-bottom:16px;}
+  .t-elegant .xp b{font-size:15px;}
+  .t-elegant .meta{font-size:12px; color:#948871; font-style:italic; margin:2px 0 5px;}
+  .t-elegant .item{font-size:12.5px; margin-bottom:9px; color:#5c5443; word-break:break-word;}
+  .t-elegant .sk{font-size:13px; margin-bottom:8px; color:#40392c;}
+  .t-elegant .sk::before{content:"— "; color:var(--ac);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo" onclick="go('landing')">Resume<span>Forge</span></div>
+  <div class="actions" id="topActions"></div>
+</div>
+
+<!-- ============ LANDING ============ -->
+<div class="view active" id="view-landing">
+  <div class="hero">
+    <h1>Build a resume that<br><em>gets you hired</em></h1>
+    <p>Create a professional resume in minutes. Start from scratch with our easy editor, or pick one of our recruiter-approved templates and make it yours.</p>
+  </div>
+  <div class="choices">
+    <div class="choice" onclick="startBlank()">
+      <div class="icon">✏️</div>
+      <h2>Create your own resume</h2>
+      <p>Start with a blank canvas. Fill in your details step by step — personal info, experience, education, skills — and watch your resume build itself live.</p>
+      <span class="go">Start from scratch →</span>
+    </div>
+    <div class="choice" onclick="go('gallery')">
+      <div class="icon">🗂️</div>
+      <h2>Choose from our resumes</h2>
+      <p>Browse 6 professionally designed templates with sample content. Pick one, then edit every word, color, and font until it's perfectly yours.</p>
+      <span class="go">Browse templates →</span>
+    </div>
+  </div>
+  <div class="feat">
+    <div>Live preview</div><div>6 designer templates</div><div>Custom colors &amp; fonts</div><div>Download as PDF</div><div>Auto-saves your draft</div>
+  </div>
+</div>
+
+<!-- ============ GALLERY ============ -->
+<div class="view" id="view-gallery">
+  <div class="gallery-wrap">
+    <h1>Choose a template</h1>
+    <p class="sub">Every template comes pre-filled with sample content — pick one and edit anything you like.</p>
+    <div class="grid" id="galleryGrid"></div>
+  </div>
+</div>
+
+<!-- ============ EDITOR ============ -->
+<div class="view" id="view-editor">
+  <div class="editor">
+    <div class="panel" id="panel"></div>
+    <div class="stage" id="stage">
+      <div class="preview-holder" id="previewHolder">
+        <div class="page" id="previewPage"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= STATE ================= */
+const TEMPLATES = [
+  {id:'modern',   label:'Modern',       tagline:'Bold sidebar layout'},
+  {id:'classic',  label:'Classic',      tagline:'Timeless serif style'},
+  {id:'minimal',  label:'Minimal',      tagline:'Clean & airy'},
+  {id:'creative', label:'Creative',     tagline:'Colorful banner header'},
+  {id:'pro',      label:'Professional', tagline:'Corporate & sharp'},
+  {id:'elegant',  label:'Elegant',      tagline:'Refined two-column'},
+];
+const COLORS = ['#4f46e5','#0e7490','#16a34a','#b45309','#be123c','#334155','#7c3aed','#0f766e'];
+const FONTS = [
+  {id:'sans',   label:'Modern Sans', stack:"'Segoe UI',system-ui,Arial,sans-serif"},
+  {id:'serif',  label:'Classic Serif', stack:"Georgia,'Times New Roman',serif"},
+  {id:'hel',    label:'Swiss', stack:"Helvetica,Arial,sans-serif"},
+  {id:'garam',  label:'Bookish', stack:"'Palatino Linotype',Palatino,Georgia,serif"},
+];
+
+function blankData(){
+  return {
+    name:'', title:'', email:'', phone:'', location:'', website:'',
+    summary:'',
+    experience:[{role:'',company:'',start:'',end:'',desc:''}],
+    education:[{degree:'',school:'',start:'',end:'',desc:''}],
+    skills:[], languages:[],
+  };
+}
+
+const state = {
+  view:'landing',
+  template:'modern',
+  accent:'#4f46e5',
+  font:'sans',
+  data:blankData(),
+};
+
+/* ================= SAMPLE RESUMES ================= */
+const SAMPLES = [
+  {template:'modern', accent:'#334155', font:'sans', data:{
+    name:'Aarav Sharma', title:'Software Engineer', email:'aarav.sharma@email.com', phone:'+91 98765 43210',
+    location:'Bengaluru, India', website:'github.com/aaravs',
+    summary:'Full-stack engineer with 5+ years building scalable web applications. Passionate about clean architecture, developer experience, and shipping products that users love.',
+    experience:[
+      {role:'Senior Software Engineer', company:'FlipKart', start:'2023', end:'Present', desc:'Led a team of 4 engineers rebuilding the checkout flow, cutting cart abandonment by 18%.\nDesigned event-driven microservices handling 2M+ daily orders.'},
+      {role:'Software Engineer', company:'Zoho Corp', start:'2020', end:'2023', desc:'Built REST APIs and React dashboards used by 40k+ business customers.\nReduced page load time 45% through code-splitting and caching.'},
+    ],
+    education:[{degree:'B.Tech, Computer Science', school:'NIT Trichy', start:'2016', end:'2020', desc:'CGPA 8.7/10 · Coding club lead'}],
+    skills:['JavaScript','React','Node.js','Python','PostgreSQL','AWS','Docker','System Design'],
+    languages:['English','Hindi','Kannada'],
+  }},
+  {template:'classic', accent:'#8b6d3f', font:'serif', data:{
+    name:'Eleanor Whitfield', title:'Corporate Attorney', email:'e.whitfield@email.com', phone:'+1 (212) 555-0147',
+    location:'New York, NY', website:'linkedin.com/in/ewhitfield',
+    summary:'Corporate attorney with a decade of experience in M&A, securities, and commercial contracts. Known for pragmatic counsel that balances legal rigor with business velocity.',
+    experience:[
+      {role:'Senior Associate', company:'Harrington & Cole LLP', start:'2019', end:'Present', desc:'Closed 30+ M&A transactions with aggregate value exceeding $2.4B.\nLead counsel on cross-border acquisitions across US, EU and APAC.'},
+      {role:'Associate', company:'Meyer Legal Group', start:'2015', end:'2019', desc:'Drafted and negotiated commercial agreements for Fortune 500 clients.\nManaged due diligence teams on private equity deals.'},
+    ],
+    education:[{degree:'Juris Doctor', school:'Columbia Law School', start:'2012', end:'2015', desc:'Harlan Fiske Stone Scholar'},{degree:'B.A. Political Science', school:'Georgetown University', start:'2008', end:'2012', desc:'magna cum laude'}],
+    skills:['M&A','Securities Law','Contract Negotiation','Due Diligence','Corporate Governance','Compliance'],
+    languages:['English','French'],
+  }},
+  {template:'minimal', accent:'#0e7490', font:'hel', data:{
+    name:'Kenji Nakamura', title:'Product Designer', email:'kenji.design@email.com', phone:'+81 90 1234 5678',
+    location:'Tokyo, Japan', website:'kenji.design',
+    summary:'Product designer who believes great design is invisible. 6 years crafting mobile and web experiences from research through polished UI, with a bias for shipping and measuring.',
+    experience:[
+      {role:'Lead Product Designer', company:'Mercari', start:'2022', end:'Present', desc:'Own end-to-end design for the seller experience used by 20M monthly users.\nBuilt and maintain the design system adopted by 6 product teams.'},
+      {role:'UI/UX Designer', company:'LINE Corp', start:'2019', end:'2022', desc:'Designed sticker-shop redesign that lifted conversion 12%.\nRan 40+ usability sessions and translated findings into roadmap bets.'},
+    ],
+    education:[{degree:'B.Des, Visual Communication', school:'Tama Art University', start:'2015', end:'2019', desc:''}],
+    skills:['Figma','Prototyping','Design Systems','User Research','Interaction Design','Motion'],
+    languages:['Japanese','English'],
+  }},
+  {template:'creative', accent:'#be123c', font:'sans', data:{
+    name:'Sofia Marchetti', title:'Marketing Director', email:'sofia.m@email.com', phone:'+39 333 456 7890',
+    location:'Milan, Italy', website:'sofiamarchetti.com',
+    summary:'Award-winning marketing leader blending brand storytelling with performance data. Built and scaled campaigns across 12 markets, growing revenue 3x in three years.',
+    experience:[
+      {role:'Marketing Director', company:'Luxotica Brands', start:'2022', end:'Present', desc:'Direct a 15-person team across brand, growth, and content.\nLaunched EU influencer program delivering 4.2x ROAS.'},
+      {role:'Growth Marketing Manager', company:'Glovo', start:'2018', end:'2022', desc:'Owned paid acquisition budget of €6M/year across 8 countries.\nCut CAC 34% via creative testing framework.'},
+    ],
+    education:[{degree:'M.Sc. Marketing Management', school:'Bocconi University', start:'2016', end:'2018', desc:''}],
+    skills:['Brand Strategy','Growth Marketing','SEO/SEM','Content Strategy','Analytics','Team Leadership'],
+    languages:['Italian','English','Spanish'],
+  }},
+  {template:'pro', accent:'#0f4c81', font:'sans', data:{
+    name:'Marcus Bennett', title:'Financial Analyst', email:'m.bennett@email.com', phone:'+44 7700 900123',
+    location:'London, UK', website:'linkedin.com/in/mbennett',
+    summary:'CFA charterholder with 7 years in equity research and corporate finance. Deep expertise in financial modelling, valuation, and translating numbers into decisions.',
+    experience:[
+      {role:'Senior Financial Analyst', company:'Barclays Investment Bank', start:'2021', end:'Present', desc:'Cover European tech sector; models cited in 60+ published research notes.\nBuilt DCF and comps frameworks adopted desk-wide.'},
+      {role:'Financial Analyst', company:'KPMG', start:'2017', end:'2021', desc:'Delivered valuation and due-diligence support on 25+ transactions.\nAutomated reporting workflows saving 300+ hours annually.'},
+    ],
+    education:[{degree:'B.Sc. Economics', school:'London School of Economics', start:'2014', end:'2017', desc:'First-class honours'}],
+    skills:['Financial Modelling','Valuation (DCF, Comps)','Excel / VBA','Bloomberg','Python','IFRS'],
+    languages:['English','German'],
+  }},
+  {template:'elegant', accent:'#9a6b2f', font:'garam', data:{
+    name:'Isabelle Laurent', title:'Executive Chef', email:'isabelle.l@email.com', phone:'+33 6 12 34 56 78',
+    location:'Paris, France', website:'@chef.isabelle',
+    summary:'Michelin-trained executive chef with 12 years leading fine-dining kitchens. Menus rooted in classic French technique, elevated with seasonal, sustainable sourcing.',
+    experience:[
+      {role:'Executive Chef', company:'Maison Verre, Paris', start:'2021', end:'Present', desc:'Earned first Michelin star within 18 months of opening.\nLead brigade of 14; food cost held at 27% while raising covers 40%.'},
+      {role:'Sous Chef', company:'Le Jardin Secret', start:'2016', end:'2021', desc:'Ran daily service for a 90-seat fine-dining room.\nDesigned seasonal tasting menus featured in Gault&Millau.'},
+    ],
+    education:[{degree:'Grand Diplôme', school:'Le Cordon Bleu, Paris', start:'2012', end:'2014', desc:''}],
+    skills:['French Cuisine','Menu Development','Kitchen Leadership','Cost Control','Wine Pairing','Pâtisserie'],
+    languages:['French','English'],
+  }},
+];
+
+/* ================= HELPERS ================= */
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2400); }
+function shade(hex,amt){ // lighten/darken for gradient second color
+  const n=parseInt(hex.slice(1),16); let r=(n>>16)+amt,g=((n>>8)&255)+amt,b=(n&255)+amt;
+  r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
+  return '#'+((r<<16)|(g<<8)|b).toString(16).padStart(6,'0');
+}
+
+/* ================= NAVIGATION ================= */
+function go(view){
+  state.view = view;
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  $('view-'+view).classList.add('active');
+  renderTopbar();
+  if(view==='gallery') renderGallery();
+  if(view==='editor'){ renderPanel(); renderPreview(); fitPreview(); }
+  window.scrollTo(0,0);
+}
+function renderTopbar(){
+  const a = $('topActions');
+  if(state.view==='editor'){
+    a.innerHTML = `<button class="btn btn-ghost" onclick="go('gallery')">Templates</button>
+      <button class="btn btn-primary" onclick="downloadPDF()">⬇ Download PDF</button>`;
+  } else if(state.view==='gallery'){
+    a.innerHTML = `<button class="btn btn-ghost" onclick="go('landing')">← Home</button>
+      <button class="btn btn-primary" onclick="startBlank()">Create your own</button>`;
+  } else {
+    a.innerHTML = `<button class="btn btn-ghost" onclick="go('gallery')">Templates</button>
+      <button class="btn btn-primary" onclick="startBlank()">Create resume</button>`;
+  }
+}
+function startBlank(){
+  const saved = loadDraft();
+  if(saved && (saved.data.name || saved.data.summary || saved.data.skills.length)){
+    if(confirm('Continue where you left off? (Cancel starts a fresh blank resume)')){
+      Object.assign(state, saved);
+    } else { state.data = blankData(); state.template='modern'; state.accent=COLORS[0]; state.font='sans'; }
+  } else {
+    state.data = blankData(); state.template='modern'; state.accent=COLORS[0]; state.font='sans';
+  }
+  go('editor');
+}
+function useSample(i){
+  const s = SAMPLES[i];
+  state.data = JSON.parse(JSON.stringify(s.data));
+  state.template = s.template; state.accent = s.accent; state.font = s.font;
+  go('editor');
+  toast('Template loaded — edit anything you like!');
+}
+
+/* ================= GALLERY ================= */
+function renderGallery(){
+  $('galleryGrid').innerHTML = SAMPLES.map((s,i)=>{
+    const t = TEMPLATES.find(t=>t.id===s.template);
+    return `<div class="tcard" onclick="useSample(${i})">
+      <div class="thumb">
+        <div class="page">${renderResume(s.data, s.template, s.accent, s.font)}</div>
+        <div class="overlay"><button class="btn btn-primary">Use this template</button></div>
+      </div>
+      <div class="tmeta"><b>${t.label}</b><span>${t.tagline}</span></div>
+    </div>`;
+  }).join('');
+}
+
+/* ================= EDITOR PANEL ================= */
+function renderPanel(){
+  const d = state.data;
+  const tplChips = TEMPLATES.map(t=>`<button class="chip ${state.template===t.id?'on':''}" onclick="setTpl('${t.id}')">${t.label}</button>`).join('');
+  const sws = COLORS.map(c=>`<button class="sw ${state.accent===c?'on':''}" style="background:${c}" onclick="setAccent('${c}')"></button>`).join('');
+  const fontOpts = FONTS.map(f=>`<option value="${f.id}" ${state.font===f.id?'selected':''}>${f.label}</option>`).join('');
+
+  const xpHTML = d.experience.map((x,i)=>`
+    <div class="entry">
+      <button class="del" onclick="rmEntry('experience',${i})" title="Remove">✕</button>
+      <div class="row2">
+        <div class="field"><label>Job title</label><input value="${esc(x.role)}" oninput="setEntry('experience',${i},'role',this.value)"></div>
+        <div class="field"><label>Company</label><input value="${esc(x.company)}" oninput="setEntry('experience',${i},'company',this.value)"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Start</label><input value="${esc(x.start)}" placeholder="2021" oninput="setEntry('experience',${i},'start',this.value)"></div>
+        <div class="field"><label>End</label><input value="${esc(x.end)}" placeholder="Present" oninput="setEntry('experience',${i},'end',this.value)"></div>
+      </div>
+      <div class="field"><label>Description (one achievement per line)</label><textarea oninput="setEntry('experience',${i},'desc',this.value)">${esc(x.desc)}</textarea></div>
+    </div>`).join('');
+
+  const eduHTML = d.education.map((x,i)=>`
+    <div class="entry">
+      <button class="del" onclick="rmEntry('education',${i})" title="Remove">✕</button>
+      <div class="row2">
+        <div class="field"><label>Degree / Course</label><input value="${esc(x.degree)}" oninput="setEntry('education',${i},'degree',this.value)"></div>
+        <div class="field"><label>School / University</label><input value="${esc(x.school)}" oninput="setEntry('education',${i},'school',this.value)"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Start year</label><input value="${esc(x.start)}" oninput="setEntry('education',${i},'start',this.value)"></div>
+        <div class="field"><label>End year</label><input value="${esc(x.end)}" oninput="setEntry('education',${i},'end',this.value)"></div>
+      </div>
+      <div class="field"><label>Notes (GPA, honors…)</label><input value="${esc(x.desc)}" oninput="setEntry('education',${i},'desc',this.value)"></div>
+    </div>`).join('');
+
+  const tagHTML = (arr,key)=> arr.map((t,i)=>`<span class="tag">${esc(t)}<button onclick="rmTag('${key}',${i})">✕</button></span>`).join('');
+
+  $('panel').innerHTML = `
+    <h3>Template</h3>
+    <div class="chips">${tplChips}</div>
+    <h3>Accent color</h3>
+    <div class="swatches">${sws}<input type="color" class="sw-custom" value="${state.accent}" title="Custom color" oninput="setAccent(this.value)"></div>
+    <h3>Font</h3>
+    <div class="field"><select onchange="setFont(this.value)">${fontOpts}</select></div>
+
+    <h3>Your details</h3>
+    <details class="sec" open><summary>👤 Personal info</summary><div class="sec-body">
+      <div class="field"><label>Full name</label><input value="${esc(d.name)}" placeholder="Jane Doe" oninput="setField('name',this.value)"></div>
+      <div class="field"><label>Job title</label><input value="${esc(d.title)}" placeholder="Product Manager" oninput="setField('title',this.value)"></div>
+      <div class="row2">
+        <div class="field"><label>Email</label><input value="${esc(d.email)}" oninput="setField('email',this.value)"></div>
+        <div class="field"><label>Phone</label><input value="${esc(d.phone)}" oninput="setField('phone',this.value)"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Location</label><input value="${esc(d.location)}" placeholder="City, Country" oninput="setField('location',this.value)"></div>
+        <div class="field"><label>Website / LinkedIn</label><input value="${esc(d.website)}" oninput="setField('website',this.value)"></div>
+      </div>
+    </div></details>
+
+    <details class="sec" open><summary>📝 Professional summary</summary><div class="sec-body">
+      <div class="field"><textarea placeholder="2–3 sentences about who you are and what you bring…" oninput="setField('summary',this.value)">${esc(d.summary)}</textarea></div>
+    </div></details>
+
+    <details class="sec" open><summary>💼 Work experience</summary><div class="sec-body">
+      ${xpHTML}
+      <button class="addbtn" onclick="addEntry('experience')">+ Add experience</button>
+    </div></details>
+
+    <details class="sec"><summary>🎓 Education</summary><div class="sec-body">
+      ${eduHTML}
+      <button class="addbtn" onclick="addEntry('education')">+ Add education</button>
+    </div></details>
+
+    <details class="sec"><summary>⚡ Skills</summary><div class="sec-body">
+      <div class="tags">${tagHTML(d.skills,'skills')}</div>
+      <div class="field"><input placeholder="Type a skill and press Enter" onkeydown="tagKey(event,'skills')"></div>
+      <div class="hint">Press Enter to add each skill</div>
+    </div></details>
+
+    <details class="sec"><summary>🌍 Languages</summary><div class="sec-body">
+      <div class="tags">${tagHTML(d.languages,'languages')}</div>
+      <div class="field"><input placeholder="Type a language and press Enter" onkeydown="tagKey(event,'languages')"></div>
+    </div></details>
+  `;
+}
+
+/* --- mutations (update preview only, don't rebuild the form while typing) --- */
+function setField(k,v){ state.data[k]=v; renderPreview(); saveDraft(); }
+function setEntry(list,i,k,v){ state.data[list][i][k]=v; renderPreview(); saveDraft(); }
+function addEntry(list){
+  state.data[list].push(list==='experience'?{role:'',company:'',start:'',end:'',desc:''}:{degree:'',school:'',start:'',end:'',desc:''});
+  renderPanel(); renderPreview(); saveDraft();
+}
+function rmEntry(list,i){ state.data[list].splice(i,1); renderPanel(); renderPreview(); saveDraft(); }
+function tagKey(e,key){
+  if(e.key==='Enter'){ e.preventDefault(); const v=e.target.value.trim(); if(v){ state.data[key].push(v); e.target.value=''; renderPanel(); renderPreview(); saveDraft();
+    // refocus the input after re-render
+    setTimeout(()=>{ const inp=document.querySelector(`input[onkeydown*="'${key}'"]`); if(inp) inp.focus(); },0);
+  }}
+}
+function rmTag(key,i){ state.data[key].splice(i,1); renderPanel(); renderPreview(); saveDraft(); }
+function setTpl(id){ state.template=id; renderPanel(); renderPreview(); saveDraft(); }
+function setAccent(c){ state.accent=c; renderPanel(); renderPreview(); saveDraft(); }
+function setFont(f){ state.font=f; renderPreview(); saveDraft(); }
+
+/* ================= DRAFT PERSISTENCE ================= */
+function saveDraft(){ try{ localStorage.setItem('rf_draft', JSON.stringify({data:state.data,template:state.template,accent:state.accent,font:state.font})); }catch(e){} }
+function loadDraft(){ try{ const s=localStorage.getItem('rf_draft'); return s?JSON.parse(s):null; }catch(e){ return null; } }
+
+/* ================= RESUME RENDERING ================= */
+function renderPreview(){
+  $('previewPage').innerHTML = renderResume(state.data, state.template, state.accent, state.font);
+}
+function fitPreview(){
+  const stage = $('stage'), holder = $('previewHolder');
+  const avail = stage.clientWidth - 68;
+  const scale = Math.min(1, avail/794);
+  holder.style.transform = `scale(${scale})`;
+  holder.style.marginBottom = scale<1 ? `-${(1-scale)*1123}px` : '0';
+}
+window.addEventListener('resize', ()=>{ if(state.view==='editor') fitPreview(); });
+
+function fmtDates(a,b){ if(!a&&!b) return ''; return [a,b].filter(Boolean).join(' – '); }
+function contactBits(d,sep){ return [d.email,d.phone,d.location,d.website].filter(Boolean).map(esc).join(sep); }
+function descHTML(t){
+  if(!t) return '';
+  const lines = t.split('\n').map(l=>l.trim()).filter(Boolean);
+  if(lines.length>1) return '<ul>'+lines.map(l=>`<li>${esc(l)}</li>`).join('')+'</ul>';
+  return `<div class="desc">${esc(t)}</div>`;
+}
+function xpBlock(list, cls){
+  return list.filter(x=>x.role||x.company).map(x=>`
+    <div class="xp"><div class="top"><b>${esc(x.role)||'&nbsp;'}</b><span class="meta" style="white-space:nowrap">${esc(fmtDates(x.start,x.end))}</span></div>
+    <div class="meta">${esc(x.company)}</div>${descHTML(x.desc)}</div>`).join('');
+}
+function eduBlock(list){
+  return list.filter(x=>x.degree||x.school).map(x=>`
+    <div class="xp"><div class="top"><b>${esc(x.degree)}</b><span class="meta" style="white-space:nowrap">${esc(fmtDates(x.start,x.end))}</span></div>
+    <div class="meta">${esc(x.school)}</div>${x.desc?`<div class="desc" style="font-size:12.5px">${esc(x.desc)}</div>`:''}</div>`).join('');
+}
+
+function renderResume(d, tpl, accent, fontId){
+  const font = (FONTS.find(f=>f.id===fontId)||FONTS[0]).stack;
+  const vars = `--ac:${accent}; --ac2:${shade(accent,55)}; font-family:${font};`;
+  const name = esc(d.name)||'Your Name';
+  const title = esc(d.title)||'Your Job Title';
+  const hasXp = d.experience.some(x=>x.role||x.company);
+  const hasEdu = d.education.some(x=>x.degree||x.school);
+
+  if(tpl==='modern'){
+    return `<div class="t-modern" style="${vars}">
+      <div class="side">
+        <h4>Contact</h4>
+        ${[d.email,d.phone,d.location,d.website].filter(Boolean).map(c=>`<div class="item">${esc(c)}</div>`).join('')||'<div class="item">your@email.com</div>'}
+        ${d.skills.length?`<h4>Skills</h4>${d.skills.map(s=>`<div class="skillbar">${esc(s)}</div>`).join('')}`:''}
+        ${d.languages.length?`<h4>Languages</h4>${d.languages.map(s=>`<div class="skillbar">${esc(s)}</div>`).join('')}`:''}
+      </div>
+      <div class="main">
+        <div class="name">${name}</div><div class="role">${title}</div>
+        ${d.summary?`<h4 class="sec-t">Profile</h4><div class="desc">${esc(d.summary)}</div>`:''}
+        ${hasXp?`<h4 class="sec-t">Experience</h4>${xpBlock(d.experience)}`:''}
+        ${hasEdu?`<h4 class="sec-t">Education</h4>${eduBlock(d.education)}`:''}
+      </div></div>`;
+  }
+  if(tpl==='classic'){
+    return `<div class="t-classic" style="${vars}">
+      <div class="head"><div class="name">${name}</div><div class="role">${title}</div>
+      <div class="contact">${contactBits(d,' &nbsp;•&nbsp; ')}</div></div>
+      ${d.summary?`<h4 class="sec-t">Summary</h4><div class="desc" style="text-align:center; max-width:600px; margin:0 auto;">${esc(d.summary)}</div>`:''}
+      ${hasXp?`<h4 class="sec-t">Professional Experience</h4>${xpBlock(d.experience)}`:''}
+      ${hasEdu?`<h4 class="sec-t">Education</h4>${eduBlock(d.education)}`:''}
+      ${d.skills.length?`<h4 class="sec-t">Skills</h4><div class="tags-line">${d.skills.map(esc).join(' • ')}</div>`:''}
+      ${d.languages.length?`<h4 class="sec-t">Languages</h4><div class="tags-line">${d.languages.map(esc).join(' • ')}</div>`:''}
+    </div>`;
+  }
+  if(tpl==='minimal'){
+    const parts = (d.name||'Your Name').split(' ');
+    const last = parts.length>1?parts.pop():'';
+    return `<div class="t-minimal" style="${vars}">
+      <div class="name">${esc(parts.join(' '))} <b>${esc(last)}</b></div>
+      <div class="role">${title}</div>
+      <div class="contact">${contactBits(d,' · ')}</div>
+      ${d.summary?`<h4 class="sec-t">About</h4><div class="desc">${esc(d.summary)}</div>`:''}
+      ${hasXp?`<h4 class="sec-t">Experience</h4>${xpBlock(d.experience)}`:''}
+      ${hasEdu?`<h4 class="sec-t">Education</h4>${eduBlock(d.education)}`:''}
+      ${d.skills.length?`<h4 class="sec-t">Skills</h4><div>${d.skills.map(s=>`<span class="pill">${esc(s)}</span>`).join('')}</div>`:''}
+      ${d.languages.length?`<h4 class="sec-t">Languages</h4><div>${d.languages.map(s=>`<span class="pill">${esc(s)}</span>`).join('')}</div>`:''}
+    </div>`;
+  }
+  if(tpl==='creative'){
+    return `<div class="t-creative" style="${vars}">
+      <div class="banner"><div class="name">${name}</div><div class="role">${title}</div>
+      <div class="contact">${contactBits(d,' &nbsp;|&nbsp; ')}</div></div>
+      <div class="cols">
+        <div class="cmain">
+          ${d.summary?`<div class="block"><h4 class="sec-t">About Me</h4><div class="desc">${esc(d.summary)}</div></div>`:''}
+          ${hasXp?`<div class="block"><h4 class="sec-t">Experience</h4>${xpBlock(d.experience)}</div>`:''}
+        </div>
+        <div class="cside">
+          ${hasEdu?`<div class="block"><h4 class="sec-t">Education</h4>${eduBlock(d.education)}</div>`:''}
+          ${d.skills.length?`<div class="block"><h4 class="sec-t">Skills</h4>${d.skills.map(s=>`<span class="pill">${esc(s)}</span>`).join('')}</div>`:''}
+          ${d.languages.length?`<div class="block"><h4 class="sec-t">Languages</h4>${d.languages.map(s=>`<span class="pill">${esc(s)}</span>`).join('')}</div>`:''}
+        </div>
+      </div></div>`;
+  }
+  if(tpl==='pro'){
+    return `<div class="t-pro" style="${vars}">
+      <div class="head">
+        <div><div class="name">${name}</div><div class="role">${title}</div></div>
+        <div class="contact">${[d.email,d.phone,d.location,d.website].filter(Boolean).map(esc).join('<br>')}</div>
+      </div>
+      ${d.summary?`<h4 class="sec-t"><span>Summary</span></h4><div class="desc">${esc(d.summary)}</div>`:''}
+      ${hasXp?`<h4 class="sec-t"><span>Experience</span></h4>${xpBlock(d.experience)}`:''}
+      ${hasEdu?`<h4 class="sec-t"><span>Education</span></h4>${eduBlock(d.education)}`:''}
+      ${d.skills.length?`<h4 class="sec-t"><span>Skills</span></h4><div class="grid2">${d.skills.map(s=>`<div>${esc(s)}</div>`).join('')}</div>`:''}
+      ${d.languages.length?`<h4 class="sec-t"><span>Languages</span></h4><div class="grid2">${d.languages.map(s=>`<div>${esc(s)}</div>`).join('')}</div>`:''}
+    </div>`;
+  }
+  /* elegant */
+  const np = (d.name||'Your Name').split(' ');
+  const nLast = np.length>1?np.pop():'';
+  return `<div class="t-elegant" style="${vars}">
+    <div class="main">
+      <div class="role">${title}</div>
+      <div class="name">${esc(np.join(' '))} <b>${esc(nLast)}</b></div>
+      ${d.summary?`<h4 class="sec-t">Profile</h4><div class="desc">${esc(d.summary)}</div>`:''}
+      ${hasXp?`<h4 class="sec-t">Experience</h4>${xpBlock(d.experience)}`:''}
+      ${hasEdu?`<h4 class="sec-t">Education</h4>${eduBlock(d.education)}`:''}
+    </div>
+    <div class="side">
+      <h4 class="sec-t" style="margin-top:0">Contact</h4>
+      ${[d.email,d.phone,d.location,d.website].filter(Boolean).map(c=>`<div class="item">${esc(c)}</div>`).join('')||'<div class="item">your@email.com</div>'}
+      ${d.skills.length?`<h4 class="sec-t">Expertise</h4>${d.skills.map(s=>`<div class="sk">${esc(s)}</div>`).join('')}`:''}
+      ${d.languages.length?`<h4 class="sec-t">Languages</h4>${d.languages.map(s=>`<div class="sk">${esc(s)}</div>`).join('')}`:''}
+    </div></div>`;
+}
+
+/* ================= PDF DOWNLOAD ================= */
+function downloadPDF(){
+  const src = $('previewPage');
+  // clone at full scale, off-screen
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed; left:-10000px; top:0; width:794px; background:#fff;';
+  const clone = src.cloneNode(true);
+  clone.style.transform = 'none';
+  wrap.appendChild(clone);
+  document.body.appendChild(wrap);
+  const fname = (state.data.name||'my-resume').trim().replace(/\s+/g,'_')+'_resume.pdf';
+  toast('Generating PDF…');
+  html2pdf().set({
+    margin:0,
+    filename:fname,
+    image:{type:'jpeg', quality:0.98},
+    html2canvas:{scale:2, useCORS:true, windowWidth:794},
+    jsPDF:{unit:'px', format:[794,1123], orientation:'portrait', hotfixes:['px_scaling']},
+    pagebreak:{mode:['css','avoid-all']},
+  }).from(clone).save().then(()=>{
+    document.body.removeChild(wrap);
+    toast('✅ PDF downloaded!');
+  }).catch(err=>{
+    document.body.removeChild(wrap);
+    console.error(err);
+    toast('PDF failed — trying print instead');
+    window.print();
+  });
+}
+
+/* ================= INIT ================= */
+renderTopbar();
+</script>
+</body>
+</html>
