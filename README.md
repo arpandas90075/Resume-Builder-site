@@ -2,7 +2,7 @@
 
 A free, lightweight resume builder that runs entirely in your browser — no signup, no backend, no data ever leaves your device. Build a professional resume in minutes and download it as a PDF.
 
-**[Live Demo](#)** · *(add your GitHub Pages link here)*
+
 
 ##  Features
 
